@@ -284,7 +284,9 @@
           angular.forEach(otherSearcher.docs, function(doc) {
             var promise = self.explain(doc)
               .then(function(parsedDoc) {
-                docs.push(parsedDoc);
+                if (parsedDoc) {
+                  docs.push(parsedDoc);
+                }
               });
 
             promises.push(promise);
@@ -323,7 +325,7 @@
           return new EsDocFactory(doc, options);
         }).catch(function(response) {
           $log.debug('Failed to run explain');
-          return response;
+          return null;
         });
     } // end of explain()
 
