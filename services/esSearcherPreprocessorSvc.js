@@ -15,7 +15,10 @@ angular.module('o19s.splainer-search')
       self.prepare  = prepare;
 
       var replaceQuery = function(args, queryText) {
-        if (queryText) {
+        if (queryText && typeof queryText === 'object') {
+          // Don't do any replacement when specifying a complete JSON query
+          return { query: queryText };
+        } else if (queryText) {
           queryText = queryText.replace(/\\/g, '\\\\');
           queryText = queryText.replace(/"/g, '\\\"');
         }

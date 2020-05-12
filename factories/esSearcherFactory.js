@@ -248,6 +248,7 @@
       /*jslint validthis:true*/
       var self = this;
 
+      var isObjectQuery = typeof otherQuery === 'object';
       var otherSearcherOptions = {
         fieldList:    self.fieldList,
         url:          self.url,
@@ -255,7 +256,7 @@
         queryText:    otherQuery,
         defaultField: fieldSpec.defaultField,
         config:     {
-          apiMethod:    'get',
+          apiMethod:    isObjectQuery ? 'post' : 'get',
           numberOfRows: self.config.numberOfRows,
           version:      self.config.version,
         },
