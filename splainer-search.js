@@ -208,7 +208,10 @@ angular.module('o19s.splainer-search')
       self.prepare  = prepare;
 
       var replaceQuery = function(args, queryText) {
-        if (queryText) {
+        if (queryText && typeof queryText === 'object') {
+          // Don't do any replacement when specifying a complete JSON query
+          return { query: queryText };
+        } else if (queryText) {
           queryText = queryText.replace(/\\/g, '\\\\');
           queryText = queryText.replace(/"/g, '\\\"');
         }
@@ -2601,17 +2604,11 @@ angular.module('o19s.splainer-search')
 
       if (apiMethod === 'get' ) {
         var fieldList = (self.fieldList === '*') ? '*' : self.fieldList.join(',');
-
-        if ( 5 <= self.majorVersion() ) {
-          /*jshint camelcase: false */
-          esUrlSvc.setParams(uri, {
-            _source:       fieldList,
-          });
-        } else {
-          esUrlSvc.setParams(uri, {
-            _source: fieldList,
-          });
+        var params = { _source: fieldList };
+        if (self.defaultField) {
+          params.df = self.defaultField;
         }
+        esUrlSvc.setParams(uri, params);
       }
 
       var url       = esUrlSvc.buildUrl(uri);
@@ -2732,21 +2729,23 @@ angular.module('o19s.splainer-search')
         });
     } // end of search()
 
-    function explainOther (otherQuery) {
+    function explainOther (otherQuery, fieldSpec) {
       /*jslint validthis:true*/
       var self = this;
 
+      var isObjectQuery = typeof otherQuery === 'object';
       var otherSearcherOptions = {
-        fieldList:  self.fieldList,
-        url:        self.url,
-        args:       self.args,
-        queryText:  otherQuery,
+        fieldList:    self.fieldList,
+        url:          self.url,
+        args:         self.args,
+        queryText:    otherQuery,
+        defaultField: fieldSpec.defaultField,
         config:     {
-          apiMethod:    'get',
+          apiMethod:    isObjectQuery ? 'post' : 'get',
           numberOfRows: self.config.numberOfRows,
           version:      self.config.version,
         },
-        type:       self.type,
+        type:         self.type,
       };
 
       if ( angular.isDefined(self.pagerArgs) && self.pagerArgs !== null ) {
@@ -3056,6 +3055,7 @@ angular.module('o19s.splainer-search')
       self.url                = options.url;
       self.args               = options.args;
       self.queryText          = options.queryText;
+      self.defaultField       = options.defaultField;
       self.config             = options.config;
       self.type               = options.type;
 
