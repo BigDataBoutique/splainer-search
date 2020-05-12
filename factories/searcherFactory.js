@@ -14,6 +14,7 @@
       self.url                = options.url;
       self.args               = options.args;
       self.queryText          = options.queryText;
+      self.defaultField       = options.defaultField;
       self.config             = options.config;
       self.type               = options.type;
 
