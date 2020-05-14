@@ -844,8 +844,8 @@ angular.module('o19s.splainer-search')
       };
 
       //
-      // Takes a dot notation and returns the value of the object by
-      // traversing the key map.
+      // Takes a key that has a dot in it, and tests if the name of the property includes
+      // the dot, or if this is dot notation for traversing a nested object or array of objects.
       //
       // @param obj,  Object, the object we want to fetch value from.
       // @param keys, String, the dot notation of the keys.
@@ -856,8 +856,12 @@ angular.module('o19s.splainer-search')
       // returns: obj['a']['b'] => c
       //
       var pathIndex = function(obj, keys) {
-        let result = multiIndex(obj, keys.split('.'));
-        return result;
+        if (obj.hasOwnProperty(keys)){
+          return obj[keys];
+        }
+        else {
+          return multiIndex(obj, keys.split('.'));
+        }
       };
 
       var assignSingleField = function(normalDoc, doc, field, toProperty) {
@@ -1527,19 +1531,6 @@ angular.module('o19s.splainer-search')
         return angular.copy(defaultSolrConfig);
       };
 
-      this.createSearcherFromSettings = function(settings, queryText, searchEngine) {
-        return this.createSearcher(
-          settings.createFieldSpec().fieldList(),
-          settings.url,
-          settings.selectedTry.args,
-          queryText,
-          {
-            version: settings.version,
-          },
-          searchEngine
-        );
-      };
-
       this.createSearcher = function (fieldList, url, args, queryText, config, searchEngine) {
         if ( searchEngine === undefined ) {
           searchEngine = 'solr';
@@ -1778,6 +1769,7 @@ angular.module('o19s.splainer-search')
 
         if (config.highlight) {
           args.hl                 = ['true'];
+          args['hl.method']       = ['unified'];  // work around issues parsing dates and numbers
           args['hl.fl']           = args.fl;
           args['hl.simple.pre']   = [searcher.HIGHLIGHTING_PRE];
           args['hl.simple.post']  = [searcher.HIGHLIGHTING_POST];
