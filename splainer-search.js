@@ -292,10 +292,6 @@ angular.module('o19s.splainer-search')
         }
       };
 
-      var setFieldsParamName = function() {
-        self.fieldsParamNames = [ '_source'];
-      };
-
       function prepare (searcher) {
         if (searcher.config === undefined) {
           searcher.config = defaultESConfig;
@@ -304,8 +300,6 @@ angular.module('o19s.splainer-search')
           // the default config object.
           searcher.config = angular.merge({}, defaultESConfig, searcher.config);
         }
-
-        setFieldsParamName(searcher);
 
         if ( searcher.config.apiMethod === 'post') {
           preparePostRequest(searcher);
@@ -2293,65 +2287,74 @@ angular.module('o19s.splainer-search')
   }
 })();
 
-'use strict';
+"use strict";
 
 /*jslint latedef:false*/
 
-(function() {
-  angular.module('o19s.splainer-search')
-    .factory('DocFactory', [DocFactory]);
+(function () {
+  angular.module("o19s.splainer-search").factory("DocFactory", [DocFactory]);
 
   function DocFactory() {
-    var Doc = function(doc, opts) {
-      var self        = this;
-
+    var Doc = function (doc, opts) {
+      var self = this;
       angular.copy(doc, self);
-
-      self.doc             = doc;
-
-      self.groupedBy       = groupedBy;
-      self.group           = group;
-      self.options         = options;
-      self.version         = version;
-      self.fieldsAttrName  = fieldsAttrName;
-      self.fieldsProperty  = fieldsProperty;
-
-      function groupedBy () {
-        if (opts.groupedBy === undefined) {
-          return null;
-        } else {
-          return opts.groupedBy;
-        }
-      }
-
-      function options() {
-        return opts;
-      }
-
-      function group () {
-        if (opts.group === undefined) {
-          return null;
-        } else {
-          return opts.group;
-        }
-      }
-
-      function version () {
-        if (opts.version === undefined) {
-          return null;
-        } else {
-          return opts.version;
-        }
-      }
-
-      function fieldsAttrName() {
-        return '_source';
-      }
-
-      function fieldsProperty() {
-        return self[self.fieldsAttrName()];
-      }
+      self.doc = doc;
+      self.opts = opts;
     };
+
+    Doc.prototype = {};
+    Doc.prototype.groupedBy = groupedBy;
+    Doc.prototype.group = group;
+    Doc.prototype.options = options;
+    Doc.prototype.version = version;
+    Doc.prototype.fieldsAttrName = fieldsAttrName;
+    Doc.prototype.fieldsProperty = fieldsProperty;
+
+    function groupedBy() {
+      /*jslint validthis:true*/
+      var self = this;
+      if (this.opts.groupedBy === undefined) {
+        return null;
+      } else {
+        return this.opts.groupedBy;
+      }
+    }
+
+    function options() {
+      /*jslint validthis:true*/
+      var self = this;
+      return this.opts;
+    }
+
+    function group() {
+      /*jslint validthis:true*/
+      var self = this;
+      if (this.opts.group === undefined) {
+        return null;
+      } else {
+        return this.opts.group;
+      }
+    }
+
+    function version() {
+      /*jslint validthis:true*/
+      var self = this;
+      if (this.opts.version === undefined) {
+        return null;
+      } else {
+        return this.opts.version;
+      }
+    }
+
+    function fieldsAttrName() {
+      return "_source";
+    }
+
+    function fieldsProperty() {
+      /*jslint validthis:true*/
+      var self = this;
+      return self[self.fieldsAttrName()];
+    }
 
     // Return factory object
     return Doc;
@@ -2393,11 +2396,12 @@ angular.module('o19s.splainer-search')
     Doc.prototype = Object.create(DocFactory.prototype);
     Doc.prototype.constructor = Doc; // Reset the constructor
 
-    Doc.prototype._url       = _url;
-    Doc.prototype.explain    = explain;
-    Doc.prototype.snippet    = snippet;
-    Doc.prototype.origin     = origin;
-    Doc.prototype.highlight  = highlight;
+    Doc.prototype._url           = _url;
+    Doc.prototype.fieldsProperty = fieldsProperty;
+    Doc.prototype.explain        = explain;
+    Doc.prototype.snippet        = snippet;
+    Doc.prototype.origin         = origin;
+    Doc.prototype.highlight      = highlight;
 
     function _url () {
       /*jslint validthis:true*/
@@ -2407,6 +2411,12 @@ angular.module('o19s.splainer-search')
 
       var uri = esUrlSvc.parseUrl(esurl);
       return esUrlSvc.buildDocUrl(uri, doc);
+    }
+
+    function fieldsProperty() {
+      /*jslint validthis:true*/
+      var self = this;
+      return Object.assign({}, self['_source'], self['fields']);
     }
 
     function explain () {

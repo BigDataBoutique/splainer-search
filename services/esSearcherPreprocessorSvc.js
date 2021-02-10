@@ -99,10 +99,6 @@ angular.module('o19s.splainer-search')
         }
       };
 
-      var setFieldsParamName = function() {
-        self.fieldsParamNames = [ '_source'];
-      };
-
       function prepare (searcher) {
         if (searcher.config === undefined) {
           searcher.config = defaultESConfig;
@@ -111,8 +107,6 @@ angular.module('o19s.splainer-search')
           // the default config object.
           searcher.config = angular.merge({}, defaultESConfig, searcher.config);
         }
-
-        setFieldsParamName(searcher);
 
         if ( searcher.config.apiMethod === 'post') {
           preparePostRequest(searcher);
