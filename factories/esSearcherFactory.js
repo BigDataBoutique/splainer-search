@@ -256,7 +256,7 @@
         queryText:    otherQuery,
         defaultField: fieldSpec.defaultField,
         config:     {
-          apiMethod:    isObjectQuery ? 'post' : 'get',
+          apiMethod:    'post',
           numberOfRows: self.config.numberOfRows,
           version:      self.config.version,
         },

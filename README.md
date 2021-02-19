@@ -6,18 +6,18 @@
 Splainer Search is an Angular Solr and Elasticsearch Search library focussed on relevance diagnostics. It's used in the relevancy tuning tools [Quepid](http://quepid.com) and [Splainer](http://splainer.io). Its available for anyone to use (see [license](LICENSE.txt)).
 
 
-Splainer search utilizes a JSONP wrapper for communication with Solr. Elasticsearch communicates clearly with simple HTTP and JSON. All fields are explained and highlighted. A friendly interface is provided to specify the arguments in terms of a Javascript object. See below for basic examples.
+Splainer search utilizes a JSONP wrapper for communication with Solr. Elasticsearch communicates clearly with simple HTTP and JSON. All fields are explained and highlighted if requested. A friendly interface is provided to specify the arguments in terms of a Javascript object. See below for basic examples.
 
 ## Basic usage
 
 ### Solr
 
-Splainer-search will perform the specified search against Solr attempting to highlight and extract explain info.
+Splainer-search will perform the specified search against Solr attempting to highlight and extract explain info.  To request highlighting on a specific field, prefix the fieldname with `"hl:"` i.e: `hl:overview`.
 
 ```js
 // searcher that searches id, title, body, author
 var searcher = searchSvc.createSearcher(
-  ['id', 'title', 'body', 'author'],
+  ['id', 'title', 'hl:body', 'author'],
   'http://localhost:8983/solr/select',
   {
     'q': ['*:*'],
@@ -280,13 +280,16 @@ We need to build a `splainer-search.js` file as part of the build.
 npm run-script build
 ```
 
-We use NP to publish splainer-search to npmjs.org:
+We use NP to publish splainer-search to npmjs.org.  You need to update the
+`CHANGELOG.md` with your new version, but you don't need to touch `package.json`,
+the `np` script bumps that file!
 
 ```
 npm install --global np
-np
+np --no-2fa
 ```
 
+Don't forget to create a release on Github as well!
 
 
 ## Thanks to...

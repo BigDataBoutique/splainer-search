@@ -208,20 +208,22 @@ angular.module('o19s.splainer-search')
       self.prepare  = prepare;
 
       var replaceQuery = function(args, queryText) {
-        if (queryText && typeof queryText === 'object') {
-          // Don't do any replacement when specifying a complete JSON query
-          return { query: queryText };
-        } else if (queryText) {
-          queryText = queryText.replace(/\\/g, '\\\\');
-          queryText = queryText.replace(/"/g, '\\\"');
+        // Allows full override of query if a JSON friendly format is sent in
+        if (queryText instanceof Object) {
+          return queryText;
+        } else {
+          if (queryText) {
+            queryText = queryText.replace(/\\/g, '\\\\');
+            queryText = queryText.replace(/"/g, '\\\"');
+          }
+
+          var replaced  = angular.toJson(args, true);
+
+          replaced      = queryTemplateSvc.hydrate(replaced, queryText, {encodeURI: false, defaultKw: '\\"\\"'});
+          replaced      = angular.fromJson(replaced);
+
+          return replaced;
         }
-
-        var replaced  = angular.toJson(args, true);
-
-        replaced      = queryTemplateSvc.hydrate(replaced, queryText, {encodeURI: false, defaultKw: '\\"\\"'});
-        replaced      = angular.fromJson(replaced);
-
-        return replaced;
       };
 
       var prepareHighlighting = function (args, fields) {
@@ -655,7 +657,7 @@ angular.module('o19s.splainer-search')
   .service('fieldSpecSvc', [
     function fieldSpecSvc() {
       var addFieldOfType = function(fieldSpec, fieldType, fieldName) {
-        if (fieldType === 'function') {
+        if (['f', 'func', 'function'].includes(fieldType)) {
           if (!fieldSpec.hasOwnProperty('functions')) {
             fieldSpec.functions = [];
           }
@@ -665,6 +667,12 @@ angular.module('o19s.splainer-search')
           }
           fieldName = fieldName + ':$' + fieldName;
           fieldSpec.functions.push(fieldName);
+        }
+        if (['highlight', 'hl'].includes(fieldType)) {
+          if (!fieldSpec.hasOwnProperty('highlights')) {
+            fieldSpec.highlights = [];
+          }
+          fieldSpec.highlights.push(fieldName);
         }
         if (fieldType === 'media') {
             if (!fieldSpec.hasOwnProperty('embeds')) {
@@ -690,35 +698,30 @@ angular.module('o19s.splainer-search')
         fieldSpec.fields.push(fieldName);
       };
 
-      var normalizeFieldTypeAliases = function(fieldType) {
-        if (fieldType === 'func' || fieldType === 'f') {
-          return 'function';
-        }
-        return fieldType;
-      };
-
       // Populate field spec from a field spec string
       var populateFieldSpec = function(fieldSpec, fieldSpecStr) {
         var fieldSpecs = fieldSpecStr.split('+').join(' ').split(/[\s,]+/);
         angular.forEach(fieldSpecs, function(aField) {
-          var typeAndField = aField.split(':');
-          var fieldType = null;
+          var specElements = aField.split(':');
+          var fieldTypes = null;
           var fieldName = null;
-          if (typeAndField.length === 2) {
-            fieldType = normalizeFieldTypeAliases(typeAndField[0]);
-            fieldName = typeAndField[1];
-          }
-          else if (typeAndField.length === 1) {
-            fieldName = typeAndField[0];
+          if (specElements.length === 1) {
+            fieldName = specElements[0];
             if (fieldSpec.hasOwnProperty('title')) {
-              fieldType = 'sub';
+              fieldTypes = ['sub'];
             }
             else {
-              fieldType = 'title';
+              fieldTypes = ['title'];
             }
+          } else if (specElements.length > 1) {
+            fieldName = specElements.pop();
+            fieldTypes = specElements;
           }
-          if (fieldType && fieldName) {
-            addFieldOfType(fieldSpec, fieldType, fieldName);
+
+          if (fieldTypes && fieldName) {
+            angular.forEach(fieldTypes, function(fieldType) {
+              addFieldOfType(fieldSpec, fieldType, fieldName);
+            });
           }
         });
       };
@@ -748,6 +751,10 @@ angular.module('o19s.splainer-search')
           return rVal;
         };
 
+        this.highlightFieldList = function() {
+          return this.highlights;
+        };
+
         // Execute innerBody for each (non id) field
         this.forEachField = function(innerBody) {
           if (this.hasOwnProperty('title')) {
@@ -758,6 +765,9 @@ angular.module('o19s.splainer-search')
           }
           angular.forEach(this.embeds, function(embed) {
             innerBody(embed);
+          });
+          angular.forEach(this.highlights, function(hl) {
+            innerBody(hl);
           });
           angular.forEach(this.subs, function(sub) {
             innerBody(sub);
@@ -770,10 +780,11 @@ angular.module('o19s.splainer-search')
 
       var transformFieldSpec = function(fieldSpecStr) {
         var defFieldSpec = 'id:id title:id *';
-        var fieldSpecs = fieldSpecStr.split(/[\s,]+/);
-        if (fieldSpecStr.trim().length === 0) {
+        if (fieldSpecStr === null || fieldSpecStr.trim().length === 0) {
           return defFieldSpec;
         }
+
+        var fieldSpecs = fieldSpecStr.split(/[\s,]+/);
         if (fieldSpecs[0] === '*') {
           return defFieldSpec;
         }
@@ -923,6 +934,11 @@ angular.module('o19s.splainer-search')
               normalDoc.subs[dispName] = parseValue(doc[dispName]);
             }
           });
+          angular.forEach(fieldSpec.highlights, function(hlField) {
+            if (fieldSpec.title !== hlField) {
+              normalDoc.subs[hlField] = parseValue(doc[hlField]);
+            }
+          });
         }
       };
 
@@ -930,6 +946,7 @@ angular.module('o19s.splainer-search')
         assignSingleField(normalDoc, doc, fieldSpec.id, 'id');
         assignSingleField(normalDoc, doc, fieldSpec.title, 'title');
         assignSingleField(normalDoc, doc, fieldSpec.thumb, 'thumb');
+        normalDoc.titleField = fieldSpec.title;
         normalDoc.embeds = {};
         assignEmbeds(normalDoc, doc, fieldSpec);
         normalDoc.subs = {};
@@ -961,6 +978,21 @@ angular.module('o19s.splainer-search')
 
       };
 
+      var getHighlightSnippet = function(aDoc, docId, subFieldName, subFieldValue, hlPre, hlPost) {
+        var snip = aDoc.highlight(
+          docId,
+          subFieldName,
+          hlPre,
+          hlPost
+        );
+
+        if ( null === snip || undefined === snip || '' === snip ) {
+          snip = escapeHtml(subFieldValue.slice(0, 200));
+        }
+
+        return snip;
+      };
+
       // layer on highlighting features
       var snippitable = function(doc) {
         var aDoc = doc.doc;
@@ -968,22 +1000,20 @@ angular.module('o19s.splainer-search')
         var lastSubSnips = {};
         var lastHlPre = null;
         var lastHlPost = null;
+
+        doc.getHighlightedTitle = function(hlPre, hlPost) {
+          return doc.title ? getHighlightSnippet(aDoc, doc.id, doc.titleField, doc.title, hlPre, hlPost) : null;
+        };
+
         doc.subSnippets = function(hlPre, hlPost) {
           if (lastHlPre !== hlPre || lastHlPost !== hlPost) {
-            angular.forEach(doc.subs, function(subFieldValue, subFieldName) {
-              if ( typeof subFieldValue === 'object' ) {
+            var displayFields = angular.copy(doc.subs);
+
+            angular.forEach(displayFields, function(subFieldValue, subFieldName) {
+              if ( typeof subFieldValue === 'object' && !(subFieldValue instanceof Array) ) {
                 lastSubSnips[subFieldName] = subFieldValue;
               } else {
-                var snip = aDoc.highlight(
-                  doc.id,
-                  subFieldName,
-                  hlPre,
-                  hlPost
-                );
-
-                if ( null === snip || undefined === snip || '' === snip ) {
-                  snip = escapeHtml(subFieldValue.slice(0, 200));
-                }
+                var snip = getHighlightSnippet(aDoc, doc.id, subFieldName, subFieldValue, hlPre, hlPost);
 
                 lastSubSnips[subFieldName] = snip;
               }
@@ -1525,13 +1555,14 @@ angular.module('o19s.splainer-search')
         return angular.copy(defaultSolrConfig);
       };
 
-      this.createSearcher = function (fieldList, url, args, queryText, config, searchEngine) {
+      this.createSearcher = function (fieldSpec, url, args, queryText, config, searchEngine) {
         if ( searchEngine === undefined ) {
           searchEngine = 'solr';
         }
 
         var options = {
-          fieldList:      fieldList,
+          fieldList:      fieldSpec.fieldList(),
+          hlFieldList:    fieldSpec.highlightFieldList(),
           url:            url,
           args:           args,
           queryText:      queryText,
@@ -1747,11 +1778,12 @@ angular.module('o19s.splainer-search')
 
       // the full URL we'll use to call Solr
       var buildCallUrl = function(searcher) {
-        var fieldList = searcher.fieldList;
-        var url       = searcher.url;
-        var config    = searcher.config;
-        var args      = withoutUnsupported(searcher.args, config.sanitize);
-        var queryText = searcher.queryText;
+        var fieldList    = searcher.fieldList;
+        var hlFieldList  = searcher.hlFieldList || [];
+        var url          = searcher.url;
+        var config       = searcher.config;
+        var args         = withoutUnsupported(searcher.args, config.sanitize);
+        var queryText    = searcher.queryText;
 
         args.fl = (fieldList === '*') ? '*' : [fieldList.join(' ')];
         args.wt = ['json'];
@@ -1761,12 +1793,15 @@ angular.module('o19s.splainer-search')
           args['debug.explain.structured'] = ['true'];
         }
 
-        if (config.highlight) {
+        if (config.highlight && hlFieldList.length > 0) {
           args.hl                 = ['true'];
           args['hl.method']       = ['unified'];  // work around issues parsing dates and numbers
-          args['hl.fl']           = args.fl;
+          args['hl.fl']           = hlFieldList.join(' ');
+
           args['hl.simple.pre']   = [searcher.HIGHLIGHTING_PRE];
           args['hl.simple.post']  = [searcher.HIGHLIGHTING_POST];
+        } else {
+          args.hl = ['false'];
         }
 
         if (config.escapeQuery) {
@@ -2743,7 +2778,7 @@ angular.module('o19s.splainer-search')
         queryText:    otherQuery,
         defaultField: fieldSpec.defaultField,
         config:     {
-          apiMethod:    isObjectQuery ? 'post' : 'get',
+          apiMethod:    'post',
           numberOfRows: self.config.numberOfRows,
           version:      self.config.version,
         },
@@ -2963,7 +2998,7 @@ angular.module('o19s.splainer-search')
       };
 
       self.searcher = searchSvc.createSearcher(
-        self.fieldSpec.fieldList(),
+        self.fieldSpec,
         self.settings.searchUrl,
         self.args,
         self.queryText,
@@ -3054,6 +3089,7 @@ angular.module('o19s.splainer-search')
       var self                = this;
 
       self.fieldList          = options.fieldList;
+      self.hlFieldList        = options.hlFieldList;
       self.url                = options.url;
       self.args               = options.args;
       self.queryText          = options.queryText;
@@ -3085,11 +3121,12 @@ angular.module('o19s.splainer-search')
 (function() {
   angular.module('o19s.splainer-search')
     .factory('SettingsValidatorFactory', [
+      'fieldSpecSvc',
       'searchSvc',
       SettingsValidatorFactory
     ]);
 
-  function SettingsValidatorFactory(searchSvc) {
+  function SettingsValidatorFactory(fieldSpecSvc, searchSvc) {
     var Validator = function(settings) {
       var self  = this;
 
@@ -3117,7 +3154,7 @@ angular.module('o19s.splainer-search')
         }
 
         self.searcher = searchSvc.createSearcher(
-          fields,
+          fieldSpecSvc.createFieldSpec(fields),
           self.searchUrl,
           args,
           '',
@@ -3411,9 +3448,11 @@ angular.module('o19s.splainer-search')
       nextArgs.start      = ['' + start];
       var pageConfig      = defaultSolrConfig;
       pageConfig.sanitize = false;
+      pageConfig.escapeQuery = self.config.escapeQuery;
 
       var options = {
         fieldList:          self.fieldList,
+        hlFieldList:        self.hlFieldList,
         url:                self.url,
         args:               nextArgs,
         queryText:          self.queryText,
@@ -3482,6 +3521,7 @@ angular.module('o19s.splainer-search')
                 groupedBy:          groupedBy,
                 group:              group,
                 fieldList:          self.fieldList,
+                hlFieldList:        self.hlFieldList,
                 url:                self.url,
                 explDict:           explDict,
                 hlDict:             hlDict,
@@ -3536,7 +3576,7 @@ angular.module('o19s.splainer-search')
       });
     } // end of search()
 
-    function explainOther (otherQuery, fieldSpec) {
+    function explainOther (otherQuery, fieldSpec, defType) {
       /*jslint validthis:true*/
       var self = this;
 
@@ -3544,8 +3584,7 @@ angular.module('o19s.splainer-search')
       self.args.explainOther = [otherQuery];
       solrSearcherPreprocessorSvc.prepare(self);
 
-      // TODO: revisit why we perform the first search, doesn't seem to have
-      // any use!
+      // First query carries out the explainOther
       return self.search()
         .then(function() {
           var start = 0;
@@ -3565,8 +3604,13 @@ angular.module('o19s.splainer-search')
             q:      [otherQuery]
           };
 
+          if (defType) {
+            solrParams.defType = defType;
+          }
+
           var otherSearcherOptions = {
             fieldList:          self.fieldList,
+            hlFieldList:        self.hlFieldList,
             url:                self.url,
             args:               solrParams,
             queryText:          otherQuery,
@@ -3580,6 +3624,7 @@ angular.module('o19s.splainer-search')
 
           var otherSearcher = new Searcher(otherSearcherOptions);
 
+          // Second query fetches metadata for the explained documents
           return otherSearcher.search()
             .then(function() {
               self.numFound        = otherSearcher.numFound;

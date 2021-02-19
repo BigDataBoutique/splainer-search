@@ -136,7 +136,7 @@ describe('Service: searchSvc: ElasticSearch', function() {
     describe('pre version 5', function() {
       beforeEach(inject(function () {
         searcher = searchSvc.createSearcher(
-          mockFieldSpec.fieldList,
+          mockFieldSpec,
           mockEsUrl,
           mockEsParams,
           mockQueryText,
@@ -159,7 +159,7 @@ describe('Service: searchSvc: ElasticSearch', function() {
 
       it('passes the rows param and sets it to what is passed in the config', function() {
         searcher = searchSvc.createSearcher(
-          mockFieldSpec.fieldList,
+          mockFieldSpec,
           mockEsUrl,
           mockEsParams,
           mockQueryText,
@@ -298,7 +298,7 @@ describe('Service: searchSvc: ElasticSearch', function() {
       it('sets the proper headers for auth', function() {
         var authEsUrl = 'http://username:password@localhost:9200/statedecoded/_search';
         searcher = searchSvc.createSearcher(
-          mockFieldSpec.fieldList,
+          mockFieldSpec,
           authEsUrl,
           mockEsParams,
           mockQueryText,
@@ -336,7 +336,7 @@ describe('Service: searchSvc: ElasticSearch', function() {
     describe('version 5+', function() {
       beforeEach(inject(function () {
         searcher = searchSvc.createSearcher(
-          mockFieldSpec.fieldList,
+          mockFieldSpec,
           mockEsUrl,
           mockEsParams,
           mockQueryText,
@@ -359,7 +359,7 @@ describe('Service: searchSvc: ElasticSearch', function() {
 
       it('passes the rows param and sets it to what is passed in the config', function() {
         searcher = searchSvc.createSearcher(
-          mockFieldSpec.fieldList,
+          mockFieldSpec,
           mockEsUrl,
           mockEsParams,
           mockQueryText,
@@ -501,7 +501,7 @@ describe('Service: searchSvc: ElasticSearch', function() {
       it('sets the proper headers for auth', function() {
         var authEsUrl = 'http://username:password@localhost:9200/statedecoded/_search';
         searcher = searchSvc.createSearcher(
-          mockFieldSpec.fieldList,
+          mockFieldSpec,
           authEsUrl,
           mockEsParams,
           mockQueryText,
@@ -543,7 +543,7 @@ describe('Service: searchSvc: ElasticSearch', function() {
   describe('explain info', function() {
     beforeEach(inject(function () {
       searcher = searchSvc.createSearcher(
-        mockFieldSpec.fieldList,
+        mockFieldSpec,
         mockEsUrl,
         mockEsParams,
         mockQueryText,
@@ -919,7 +919,7 @@ describe('Service: searchSvc: ElasticSearch', function() {
         }
       };
       var searcher = searchSvc.createSearcher(
-        mockFieldSpec.fieldList,
+        mockFieldSpec,
         mockEsUrl,
         mockEsParams,
         mockQueryText,
@@ -946,7 +946,7 @@ describe('Service: searchSvc: ElasticSearch', function() {
         }
       };
       var searcher = searchSvc.createSearcher(
-        mockFieldSpec.fieldList,
+        mockFieldSpec,
         mockEsUrl,
         mockEsParams,
         mockQueryText,
@@ -973,7 +973,7 @@ describe('Service: searchSvc: ElasticSearch', function() {
         }
       };
       var searcher = searchSvc.createSearcher(
-        mockFieldSpec.fieldList,
+        mockFieldSpec,
         mockEsUrl,
         mockEsParams,
         null,
@@ -1000,7 +1000,7 @@ describe('Service: searchSvc: ElasticSearch', function() {
         }
       };
       var searcher = searchSvc.createSearcher(
-        mockFieldSpec.fieldList,
+        mockFieldSpec,
         mockEsUrl,
         mockEsParams,
         mockQueryText,
@@ -1160,7 +1160,7 @@ describe('Service: searchSvc: ElasticSearch', function() {
   describe('failures', function () {
     beforeEach(inject(function () {
       searcher = searchSvc.createSearcher(
-        mockFieldSpec.fieldList,
+        mockFieldSpec,
         mockEsUrl,
         mockEsParams,
         mockQueryText,
@@ -1212,7 +1212,7 @@ describe('Service: searchSvc: ElasticSearch', function() {
   describe('explain other', function() {
     beforeEach(inject(function () {
       searcher = searchSvc.createSearcher(
-        mockFieldSpec.fieldList(),
+        mockFieldSpec,
         mockEsUrl,
         mockEsParams,
         mockQueryText,
@@ -1277,11 +1277,8 @@ describe('Service: searchSvc: ElasticSearch', function() {
     it('makes one search request and one explain request per resulting doc', function () {
       var fieldList = mockFieldSpec.fieldList().join(',');
       var url       = mockEsUrl;
-      url += '?_source=' + fieldList;
-      url += '&q=' + otherQuery;
-      url += '&from=0&size=10';
 
-      $httpBackend.expectGET(url).respond(200, expectedResponse);
+      $httpBackend.expectPOST(url).respond(200, expectedResponse);
 
       angular.forEach(expectedDocs, function(doc) {
         var explainUrl = "http://localhost:9200/statedecoded/law/";
@@ -1298,11 +1295,8 @@ describe('Service: searchSvc: ElasticSearch', function() {
     it('sets the array of docs', function () {
       var fieldList = mockFieldSpec.fieldList().join(',');
       var url       = mockEsUrl;
-      url += '?_source=' + fieldList;
-      url += '&q=' + otherQuery;
-      url += '&from=0&size=10';
 
-      $httpBackend.expectGET(url).respond(200, expectedResponse);
+      $httpBackend.expectPOST(url).respond(200, expectedResponse);
 
       angular.forEach(expectedDocs, function(doc) {
         var explainUrl = "http://localhost:9200/statedecoded/law/";
@@ -1323,11 +1317,8 @@ describe('Service: searchSvc: ElasticSearch', function() {
     it('paginates for explain other searches', function () {
       var fieldList = mockFieldSpec.fieldList().join(',');
       var url       = mockEsUrl;
-      url += '?_source=' + fieldList;
-      url += '&q=' + otherQuery;
-      url += '&from=10&size=10';
 
-      $httpBackend.expectGET(url).respond(200, expectedResponse);
+      $httpBackend.expectPOST(url).respond(200, expectedResponse);
 
       angular.forEach(expectedDocs, function(doc) {
         var explainUrl = "http://localhost:9200/statedecoded/law/";
@@ -1348,7 +1339,7 @@ describe('Service: searchSvc: ElasticSearch', function() {
   describe('version', function() {
     beforeEach(inject(function () {
       searcher = searchSvc.createSearcher(
-        mockFieldSpec.fieldList().join(','),
+        mockFieldSpec,
         mockEsUrl,
         mockEsParams,
         mockQueryText,
@@ -1361,13 +1352,13 @@ describe('Service: searchSvc: ElasticSearch', function() {
       expect(searcher.config.version).toEqual('5.0');
 
       var expectedParams = {
-        _source:       mockFieldSpec.fieldList().join(',')
+        _source:       mockFieldSpec.fieldList()
       };
 
       $httpBackend.when('POST', mockEsUrl,
         function(postData) {
           var jsonData = JSON.parse(postData);
-          expect(jsonData._source).toBe(expectedParams._source);
+          expect(jsonData._source).toEqual(expectedParams._source);
           return true;
         }
       ).respond(200, mockES4Results);
@@ -1380,7 +1371,7 @@ describe('Service: searchSvc: ElasticSearch', function() {
   describe('version 7', function() {
     beforeEach(inject(function () {
       searcher = searchSvc.createSearcher(
-        mockFieldSpec.fieldList,
+        mockFieldSpec,
         mockEsUrl,
         mockEsParams,
         mockQueryText,

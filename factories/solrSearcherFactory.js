@@ -86,9 +86,11 @@
       nextArgs.start      = ['' + start];
       var pageConfig      = defaultSolrConfig;
       pageConfig.sanitize = false;
+      pageConfig.escapeQuery = self.config.escapeQuery;
 
       var options = {
         fieldList:          self.fieldList,
+        hlFieldList:        self.hlFieldList,
         url:                self.url,
         args:               nextArgs,
         queryText:          self.queryText,
@@ -157,6 +159,7 @@
                 groupedBy:          groupedBy,
                 group:              group,
                 fieldList:          self.fieldList,
+                hlFieldList:        self.hlFieldList,
                 url:                self.url,
                 explDict:           explDict,
                 hlDict:             hlDict,
@@ -211,7 +214,7 @@
       });
     } // end of search()
 
-    function explainOther (otherQuery, fieldSpec) {
+    function explainOther (otherQuery, fieldSpec, defType) {
       /*jslint validthis:true*/
       var self = this;
 
@@ -219,8 +222,7 @@
       self.args.explainOther = [otherQuery];
       solrSearcherPreprocessorSvc.prepare(self);
 
-      // TODO: revisit why we perform the first search, doesn't seem to have
-      // any use!
+      // First query carries out the explainOther
       return self.search()
         .then(function() {
           var start = 0;
@@ -240,8 +242,13 @@
             q:      [otherQuery]
           };
 
+          if (defType) {
+            solrParams.defType = defType;
+          }
+
           var otherSearcherOptions = {
             fieldList:          self.fieldList,
+            hlFieldList:        self.hlFieldList,
             url:                self.url,
             args:               solrParams,
             queryText:          otherQuery,
@@ -255,6 +262,7 @@
 
           var otherSearcher = new Searcher(otherSearcherOptions);
 
+          // Second query fetches metadata for the explained documents
           return otherSearcher.search()
             .then(function() {
               self.numFound        = otherSearcher.numFound;
